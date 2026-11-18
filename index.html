@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <meta name="theme-color" content="#064e3b" />
+  <title>KOPMA MART POS — Sistem Kasir Realtime & Layar Pembeli</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased selection:bg-emerald-700 selection:text-white">
+
+  <!-- Skip to Main Content untuk Aksesibilitas -->
+  <a href="#mainWorkspace" class="skip-link">Langsung ke Area Kerja Utama</a>
+
+  <!-- Live Region ARIA untuk Pembaca Layar -->
+  <div id="ariaAnnouncer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- =========================================================
+       VIEW 1: HALAMAN LOGIN KASIR & MODE LAYAR PEMBELI (2 DEVICE)
+  ========================================================== -->
+  <section id="authGateView" class="auth-gate" aria-label="Portal Masuk Kasir dan Layar Pembeli">
+    <div class="auth-backdrop"></div>
+    <div class="auth-container">
+      <!-- Panel Kiri: Branding Kopma & Mode Layar Pembeli -->
+      <div class="auth-brand-panel">
+        <div class="brand-top">
+          <div class="brand-badge">
+            <i data-lucide="store" class="icon-md"></i>
+            <span>KOPMA MART POS • REALTIME FIRESTORE</span>
+          </div>
+          <h1>Sistem Kasir Terpadu Koperasi Mahasiswa</h1>
+          <p>Sinkronisasi langsung antar-perangkat (Kasir Utama &amp; Layar Pembeli), manajemen katalog berbasis JSON &amp; Cloud Firestore, serta rekapitulasi shift otomatis zona WITA.</p>
+        </div>
+
+        <!-- Kartu Masuk Cepat ke Mode Layar Pembeli (Device Terpisah) -->
+        <div class="customer-device-card">
+          <div class="cdc-header">
+            <div class="cdc-icon"><i data-lucide="monitor-smartphone" class="icon-md"></i></div>
+            <div>
+              <h2>Perangkat Layar Pembeli (Customer Display)</h2>
+              <p>Gunakan perangkat kedua (Tablet/HP/Monitor) tanpa perlu login akun kasir.</p>
+            </div>
+          </div>
+          <button type="button" id="btnOpenCustomerPortal" class="btn btn-amber btn-full touch-target">
+            <i data-lucide="cast" class="icon-sm"></i>
+            <span>Buka Layar Pembeli (Masukkan Kode Pairing)</span>
+          </button>
+        </div>
+
+        <div class="brand-footer">
+          <span id="authWitaClock" class="mono-text">--:--:-- WITA</span>
+          <span>•</span>
+          <span>Aksesibilitas WCAG AA • Ringan &amp; Responsif</span>
+        </div>
+      </div>
+
+      <!-- Panel Kanan: Form Login Firebase Auth -->
+      <div class="auth-form-panel">
+        <div class="auth-form-header">
+          <span class="pill-emerald">Autentikasi Kasir</span>
+          <h2>Masuk ke Sistem Kasir</h2>
+          <p>Silakan masukkan akun Firebase terdaftar serta nama petugas kasir yang sedang piket.</p>
+        </div>
+
+        <form id="loginForm" class="auth-form" novalidate>
+          <div class="form-group">
+            <label for="loginEmail">Email Kasir / Koperasi <span class="req">*</span></label>
+            <div class="input-with-icon">
+              <i data-lucide="mail" class="input-icon"></i>
+              <input type="email" id="loginEmail" autocomplete="email" placeholder="kasir@kopmamart.id" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="loginPassword">Kata Sandi (Password) <span class="req">*</span></label>
+            <div class="input-with-icon">
+              <i data-lucide="lock" class="input-icon"></i>
+              <input type="password" id="loginPassword" autocomplete="current-password" placeholder="Masukkan kata sandi" required />
+              <button type="button" id="btnTogglePassword" class="btn-icon-inside" aria-label="Tampilkan atau sembunyikan kata sandi">
+                <i data-lucide="eye" class="icon-sm"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="loginCashierName">Login Sebagai (Nama Kasir Piket) <span class="req">*</span></label>
+            <div class="input-with-icon">
+              <i data-lucide="user-check" class="input-icon"></i>
+              <input type="text" id="loginCashierName" autocomplete="name" placeholder="Contoh: Jepry / Aufaa" required />
+            </div>
+            <small class="form-hint">Nama ini akan tercetak pada struk belanja, log audit, dan laporan shift.</small>
+          </div>
+
+          <div class="form-row-between">
+            <label class="checkbox-label">
+              <input type="checkbox" id="loginRememberMe" checked />
+              <span>Ingat Saya (Remember Me)</span>
+            </label>
+            <span class="status-pill-online" id="firebaseConnBadge">
+              <span class="dot-pulse"></span> Cloud Ready
+            </span>
+          </div>
+
+          <div id="loginErrorBox" class="alert-error hidden" role="alert"></div>
+
+          <button type="submit" id="btnLoginSubmit" class="btn btn-emerald btn-lg btn-full touch-target">
+            <i data-lucide="log-in" class="icon-sm"></i>
+            <span>Masuk &amp; Mulai Shift Kasir</span>
+          </button>
+        </form>
+
+        <!-- Informasi Bantuan Akun -->
+        <div class="operator-help-box" role="note">
+          <i data-lucide="shield-alert" class="icon-md text-amber"></i>
+          <div>
+            <strong>Belum mengetahui Email &amp; Password?</strong>
+            <p>Silakan hubungi <strong>Operator / Pengurus Inti Koperasi Mahasiswa</strong> untuk aktivasi akun petugas piket baru.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       VIEW 2: LAYAR PEMBELI REALTIME (PERANGKAT TERPISAH)
+  ========================================================== -->
+  <section id="customerDisplayView" class="customer-view hidden" aria-label="Layar Pembeli Realtime">
+    <!-- Layar Input Kode Pairing (Jika belum terhubung ke Kasir) -->
+    <div id="pairingScreen" class="pairing-screen">
+      <div class="pairing-card">
+        <button type="button" id="btnBackToLogin" class="btn btn-ghost btn-sm mb-4">
+          <i data-lucide="arrow-left" class="icon-sm"></i>
+          <span>Kembali ke Halaman Login</span>
+        </button>
+        <div class="pairing-icon">
+          <i data-lucide="qr-code" class="icon-lg"></i>
+        </div>
+        <h1>Hubungkan Layar Pembeli</h1>
+        <p>Masukkan <strong>6 Digit Kode Sesi</strong> yang tampil di layar perangkat Kasir Utama untuk menyinkronkan keranjang secara realtime.</p>
+
+        <form id="pairingForm" class="pairing-form">
+          <label for="pairingCodeInput" class="sr-only">Kode Sesi Kasir 6 Digit</label>
+          <input type="text" id="pairingCodeInput" maxlength="6" placeholder="Contoh: KPM842" autocomplete="off" spellcheck="false" required />
+          <div id="pairingError" class="alert-error hidden" role="alert"></div>
+          <button type="submit" id="btnConnectSession" class="btn btn-emerald btn-lg btn-full touch-target">
+            <i data-lucide="link" class="icon-sm"></i>
+            <span>Hubungkan ke Kasir Utama</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Layar Aktif Customer Display (Realtime Cart & Total) -->
+    <div id="activeCustomerScreen" class="active-customer-screen hidden">
+      <header class="cust-topbar">
+        <div class="cust-store-info">
+          <div class="cust-logo"><i data-lucide="store" class="icon-md"></i></div>
+          <div>
+            <h1 id="custStoreName">KOPMA MART</h1>
+            <p id="custCashierInfo">Kasir Piket: - • Sesi: <strong id="custSessionBadge">-</strong></p>
+          </div>
+        </div>
+        <div class="cust-status-right">
+          <span class="live-sync-pill"><span class="dot-pulse"></span> LIVE REALTIME</span>
+          <span id="custClockWita" class="mono-text font-bold">--:--:-- WITA</span>
+          <button type="button" id="btnDisconnectCustomer" class="btn btn-outline-light btn-sm">Putuskan</button>
+        </div>
+      </header>
+
+      <main class="cust-main-grid">
+        <!-- Kolom Kiri: Daftar Belanja Realtime -->
+        <div class="cust-items-panel">
+          <div class="cust-panel-head">
+            <h2>Rincian Belanja Anda</h2>
+            <span id="custItemCount" class="badge-emerald">0 Item</span>
+          </div>
+          <div id="custItemsList" class="cust-items-list">
+            <div class="empty-state">
+              <i data-lucide="shopping-bag" class="icon-xl"></i>
+              <h3>Selamat Datang di KOPMA MART</h3>
+              <p>Silakan letakkan barang belanjaan Anda di meja kasir. Daftar item akan muncul di layar ini secara otomatis.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kolom Kanan: Total Tagihan & QRIS / Kembalian -->
+        <div class="cust-summary-panel">
+          <div class="cust-total-card">
+            <span class="cust-total-label">TOTAL YANG HARUS DIBAYAR</span>
+            <div id="custGrandTotal" class="cust-grand-total">Rp 0</div>
+            <div class="cust-sub-rows">
+              <div><span>Subtotal Normal</span><span id="custSubtotal">Rp 0</span></div>
+              <div class="text-emerald-300"><span>Hemat Diskon Anggota</span><span id="custMemberSaved">- Rp 0</span></div>
+              <div id="custExtraDiscRow" class="hidden text-amber-300"><span>Diskon Tambahan</span><span id="custExtraDisc">- Rp 0</span></div>
+            </div>
+          </div>
+
+          <!-- Status Pembayaran / QRIS / Kembalian Realtime -->
+          <div id="custPaymentStage" class="cust-payment-box">
+            <div class="stage-idle">
+              <i data-lucide="scan-line" class="icon-lg text-emerald"></i>
+              <h3>Menunggu Proses Kasir</h3>
+              <p>Tunjukkan kartu anggota atau sebutkan status keanggotaan Anda untuk mendapatkan harga khusus anggota.</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       VIEW 3: WORKSPACE UTAMA KASIR (TERAUTENTIKASI)
+  ========================================================== -->
+  <div id="posAppShell" class="app-shell hidden">
+    <!-- Sidebar Navigasi (Desktop) -->
+    <aside id="appSidebar" class="sidebar" aria-label="Menu Navigasi Utama">
+      <div class="sidebar-brand">
+        <div class="brand-square"><i data-lucide="store" class="icon-md"></i></div>
+        <div class="brand-texts">
+          <strong id="sidebarStoreName">KOPMA MART</strong>
+          <span>POS REALTIME CLOUD</span>
+        </div>
+        <button type="button" id="btnToggleSidebar" class="btn-icon-ghost" aria-label="Perkecil atau perbesar bilah samping">
+          <i data-lucide="panel-left-close" class="icon-sm"></i>
+        </button>
+      </div>
+
+      <!-- Kartu Kode Pairing Realtime untuk Layar Pembeli -->
+      <div class="pairing-box-sidebar">
+        <div class="pbs-top">
+          <span>KODE LAYAR PEMBELI</span>
+          <span class="dot-online" title="Tersinkron ke Firestore"></span>
+        </div>
+        <div class="pbs-code-row">
+          <strong id="sessionCodeDisplay" class="mono-text">------</strong>
+          <button type="button" id="btnCopySessionCode" class="btn-mini" title="Salin Kode Sesi">Salin</button>
+          <button type="button" id="btnRegenerateSession" class="btn-mini" title="Buat Kode Sesi Baru">Baru</button>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-label">MENU UTAMA</div>
+        <button type="button" class="nav-item active" data-section="dashboard">
+          <i data-lucide="layout-dashboard" class="icon-sm"></i>
+          <span>Dashboard Analitik</span>
+        </button>
+        <button type="button" class="nav-item" data-section="pos">
+          <i data-lucide="scan-barcode" class="icon-sm"></i>
+          <span>Kasir &amp; Katalog</span>
+          <kbd class="kbd-hint">F2</kbd>
+        </button>
+        <button type="button" class="nav-item" data-section="cart">
+          <i data-lucide="shopping-cart" class="icon-sm"></i>
+          <span>Keranjang &amp; Bayar</span>
+          <span id="navCartBadge" class="badge-amber">0</span>
+        </button>
+        <button type="button" class="nav-item" data-section="inventory">
+          <i data-lucide="database" class="icon-sm"></i>
+          <span>Barang, JSON &amp; Log</span>
+        </button>
+
+        <div class="nav-label mt-4">ALAT &amp; KONTROL KASIR</div>
+        <button type="button" class="nav-item" id="btnOpenHeldModal">
+          <i data-lucide="pause-circle" class="icon-sm"></i>
+          <span>Pesanan Ditahan</span>
+          <span id="navHoldBadge" class="badge-muted">0</span>
+        </button>
+        <button type="button" class="nav-item" id="btnOpenShiftModal">
+          <i data-lucide="calculator" class="icon-sm"></i>
+          <span>Tutup Shift &amp; Laci</span>
+        </button>
+        <button type="button" class="nav-item" id="btnOpenPettyCashModal">
+          <i data-lucide="wallet" class="icon-sm"></i>
+          <span>Buku Kas Keluar</span>
+        </button>
+        <button type="button" class="nav-item" id="btnOpenSettingsModal">
+          <i data-lucide="settings" class="icon-sm"></i>
+          <span>Pengaturan &amp; Akses</span>
+        </button>
+      </nav>
+
+      <!-- Footer Info Kasir Piket & Logout -->
+      <div class="sidebar-footer">
+        <div class="cashier-card">
+          <div class="cashier-avatar" id="cashierAvatar">K</div>
+          <div class="cashier-meta">
+            <strong id="activeCashierName">Kasir Piket</strong>
+            <span id="activeCashierEmail" class="truncate">kasir@kopma.id</span>
+            <span id="sidebarClockWita" class="clock-wita">--:--:-- WITA</span>
+          </div>
+        </div>
+        <button type="button" id="btnLogout" class="btn btn-danger-outline btn-sm btn-full mt-2">
+          <i data-lucide="log-out" class="icon-sm"></i>
+          <span>Keluar / Ganti Kasir</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Area Konten Utama -->
+    <div class="main-wrapper">
+      <!-- Top Header Mobile & Quick Status Bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="mobile-brand">
+            <i data-lucide="store" class="icon-sm text-emerald"></i>
+            <strong>KOPMA MART</strong>
+          </div>
+          <div class="session-chip" title="Masukkan kode ini di perangkat Layar Pembeli">
+            <span>Kode Pembeli:</span>
+            <strong id="topbarSessionCode" class="mono-text">------</strong>
+          </div>
+          <span id="cloudSyncStatus" class="sync-pill">
+            <i data-lucide="cloud-check" class="icon-xs"></i>
+            <span>Firestore Tersinkron</span>
+          </span>
+        </div>
+
+        <div class="topbar-right">
+          <span id="topbarClockWita" class="mono-text topbar-clock">--:--:-- WITA</span>
+          <button type="button" id="btnToggleBeep" class="btn-icon-outline" title="Suara Beep Kasir" aria-label="Aktifkan atau matikan suara beep kasir">
+            <i data-lucide="volume-2" class="icon-sm"></i>
+          </button>
+          <button type="button" id="btnToggleContrast" class="btn-icon-outline" title="Mode Kontras Tinggi / Gelap" aria-label="Ubah tema kontras tinggi">
+            <i data-lucide="contrast" class="icon-sm"></i>
+          </button>
+          <button type="button" id="btnQuickUploadJsonTop" class="btn btn-emerald btn-sm">
+            <i data-lucide="upload" class="icon-sm"></i>
+            <span class="hide-xs">Upload JSON</span>
+          </button>
+        </div>
+      </header>
+
+      <main id="mainWorkspace" class="workspace-content" tabindex="-1">
+
+        <!-- =====================================================
+             SECTION 1: DASHBOARD ANALITIK & RINGKASAN SHIFT
+        ====================================================== -->
+        <section id="section-dashboard" class="page-section active" aria-labelledby="dashHeading">
+          <div class="section-header">
+            <div>
+              <span id="dashDateBadge" class="pill-emerald">Zona Waktu WITA</span>
+              <h1 id="dashHeading">Dashboard Operasional Koperasi</h1>
+              <p>Pantau omzet realtime, manfaat diskon anggota, saldo laci kasir, dan kesiapan katalog produk.</p>
+            </div>
+            <div class="header-actions">
+              <button type="button" class="btn btn-outline btn-sm" id="btnDashUploadJson">
+                <i data-lucide="file-json" class="icon-sm"></i>
+                <span>Import Katalog JSON</span>
+              </button>
+              <button type="button" class="btn btn-outline btn-sm" id="btnExportCsv">
+                <i data-lucide="download" class="icon-sm"></i>
+                <span>Ekspor Laporan CSV</span>
+              </button>
+              <button type="button" class="btn btn-emerald btn-sm" data-goto="pos">
+                <i data-lucide="plus" class="icon-sm"></i>
+                <span>Transaksi Baru</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Banner Peringatan Jika Katalog Masih Kosong -->
+          <div id="emptyCatalogBanner" class="banner-warning hidden" role="region" aria-label="Pemberitahuan Katalog Kosong">
+            <div class="bw-icon"><i data-lucide="file-up" class="icon-lg"></i></div>
+            <div class="bw-content">
+              <h3>Database Katalog Produk Masih Kosong</h3>
+              <p>Silakan unggah file <strong>produk-kopma-mart.json</strong> yang telah disediakan agar seluruh 261 daftar barang &amp; harga otomatis dimuat ke Firebase Firestore dan siap digunakan kasir.</p>
+            </div>
+            <button type="button" id="btnBannerUploadJson" class="btn btn-amber touch-target">
+              <i data-lucide="upload-cloud" class="icon-sm"></i>
+              <span>Upload File JSON Sekarang</span>
+            </button>
+          </div>
+
+          <!-- KPI Cards -->
+          <div class="kpi-grid">
+            <article class="kpi-card">
+              <div class="kpi-top">
+                <span>OMZET PENJUALAN (WITA)</span>
+                <div class="kpi-icon bg-emerald-soft"><i data-lucide="trending-up" class="icon-sm"></i></div>
+              </div>
+              <div class="kpi-value" id="kpiTotalRevenue">Rp 0</div>
+              <div class="kpi-sub" id="kpiTxCount">0 transaksi selesai</div>
+            </article>
+
+            <article class="kpi-card">
+              <div class="kpi-top">
+                <span>SALDO BERSIH LACI KAS</span>
+                <div class="kpi-icon bg-amber-soft"><i data-lucide="wallet" class="icon-sm"></i></div>
+              </div>
+              <div class="kpi-value" id="kpiNetCash">Rp 0</div>
+              <div class="kpi-sub" id="kpiCashBreakdown">Tunai Rp 0 • Keluar Rp 0</div>
+            </article>
+
+            <article class="kpi-card">
+              <div class="kpi-top">
+                <span>MANFAAT DISKON ANGGOTA</span>
+                <div class="kpi-icon bg-blue-soft"><i data-lucide="badge-percent" class="icon-sm"></i></div>
+              </div>
+              <div class="kpi-value" id="kpiMemberSavings">Rp 0</div>
+              <div class="kpi-sub" id="kpiItemsSold">0 item terjual total</div>
+            </article>
+
+            <article class="kpi-card">
+              <div class="kpi-top">
+                <span>STATUS KATALOG &amp; STOK</span>
+                <div class="kpi-icon bg-rose-soft"><i data-lucide="package-search" class="icon-sm"></i></div>
+              </div>
+              <div class="kpi-value" id="kpiTotalProducts">0 Produk</div>
+              <div class="kpi-sub" id="kpiLowStockCount">0 stok menipis • 0 QRIS</div>
+            </article>
+          </div>
+
+          <!-- Grid Analitik 2 Kolom -->
+          <div class="dash-two-col">
+            <div class="card">
+              <div class="card-header">
+                <h2>Distribusi Katalog &amp; Metode Bayar</h2>
+                <span id="dashPaymentRatio" class="badge-muted">Cash 0 • QRIS 0</span>
+              </div>
+              <div id="categoryBreakdownList" class="category-bars">
+                <p class="text-muted text-sm">Belum ada data kategori produk.</p>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2>5 Produk Terlaris &amp; Peringatan Stok</h2>
+                <span class="badge-emerald">Realtime</span>
+              </div>
+              <div id="topProductsList" class="top-products-list">
+                <p class="text-muted text-sm">Belum ada transaksi tercatat.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- =====================================================
+             SECTION 2: KASIR & KATALOG PRODUK + LIVE MINI CART
+        ====================================================== -->
+        <section id="section-pos" class="page-section" aria-labelledby="posHeading">
+          <div class="pos-split-layout">
+            <!-- Kolom Kiri: Pencarian, Filter & Grid Produk -->
+            <div class="pos-catalog-area">
+              <div class="catalog-toolbar card">
+                <div class="search-row">
+                  <div class="search-input-wrap">
+                    <i data-lucide="search" class="search-icon"></i>
+                    <input type="search" id="posSearchInput" placeholder="Cari nama barang atau SKU... (Enter = tambah cepat, F2 = fokus)" aria-label="Cari nama barang" />
+                    <button type="button" id="btnClearSearch" class="btn-clear-search hidden" aria-label="Hapus pencarian">&times;</button>
+                  </div>
+
+                  <label class="toggle-chip" title="Tampilkan hanya barang yang memiliki harga khusus anggota">
+                    <input type="checkbox" id="filterMemberOnly" />
+                    <i data-lucide="award" class="icon-xs"></i>
+                    <span>Diskon Anggota</span>
+                  </label>
+
+                  <button type="button" id="btnOpenAddProductModal" class="btn btn-emerald btn-sm touch-target">
+                    <i data-lucide="plus-circle" class="icon-sm"></i>
+                    <span>Tambah Barang</span>
+                  </button>
+                </div>
+
+                <div class="filter-bar">
+                  <div id="categoryTabs" class="category-pills" role="tablist" aria-label="Filter Kategori Produk"></div>
+                  <div class="sort-wrap">
+                    <label for="posSortSelect" class="sr-only">Urutkan produk</label>
+                    <select id="posSortSelect">
+                      <option value="default">Urutan: Favorit &amp; A-Z</option>
+                      <option value="price-asc">Harga Termurah</option>
+                      <option value="price-desc">Harga Termahal</option>
+                      <option value="stock-asc">Stok Terdikit</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="catalog-meta-row">
+                <span id="catalogResultInfo">Menampilkan 0 produk</span>
+                <div class="quick-member-bar">
+                  <button type="button" id="btnBulkMemberOn" class="btn-link-emerald">Set Semua Keranjang Harga Anggota</button>
+                </div>
+              </div>
+
+              <!-- Grid Kartu Produk -->
+              <div id="productGrid" class="product-grid" role="list"></div>
+            </div>
+
+            <!-- Kolom Kanan: Live Mini-Cart Desktop (Tersinkron Realtime ke Layar Pembeli) -->
+            <aside class="pos-minicart-area card" aria-label="Ringkasan Keranjang Aktif">
+              <div class="minicart-header">
+                <div>
+                  <h2><i data-lucide="shopping-bag" class="icon-sm"></i> Keranjang Aktif</h2>
+                  <span class="minicart-sync-tag">Tampil di Layar Pembeli</span>
+                </div>
+                <div class="minicart-actions">
+                  <button type="button" id="btnHoldCurrentCart" class="btn-icon-ghost" title="Tahan Pesanan (Hold Cart)" aria-label="Tahan pesanan saat ini">
+                    <i data-lucide="pause" class="icon-sm"></i>
+                  </button>
+                  <button type="button" id="btnClearCartMini" class="btn-icon-ghost text-rose" title="Kosongkan Keranjang" aria-label="Kosongkan keranjang">
+                    <i data-lucide="trash-2" class="icon-sm"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div id="miniCartItems" class="minicart-items"></div>
+
+              <div class="minicart-footer">
+                <div class="mc-row"><span>Subtotal Normal</span><span id="mcSubtotal">Rp 0</span></div>
+                <div class="mc-row text-emerald"><span>Diskon Anggota</span><span id="mcMemberDisc">- Rp 0</span></div>
+                <div class="mc-total">
+                  <span>Total Tagihan</span>
+                  <strong id="mcGrandTotal">Rp 0</strong>
+                </div>
+                <button type="button" id="btnProceedToCheckout" class="btn btn-emerald btn-lg btn-full touch-target" disabled>
+                  <span>Lanjut Pembayaran &amp; Struk</span>
+                  <i data-lucide="arrow-right" class="icon-sm"></i>
+                </button>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- =====================================================
+             SECTION 3: KERANJANG DETAIL, PEMBAYARAN CASH/QRIS & WA
+        ====================================================== -->
+        <section id="section-cart" class="page-section" aria-labelledby="cartHeading">
+          <div class="section-header">
+            <div>
+              <span class="pill-amber">Checkout &amp; Struk Digital</span>
+              <h1 id="cartHeading">Keranjang Belanja &amp; Pembayaran</h1>
+              <p>Atur status anggota per item, pilih metode Cash atau QRIS, dan kirim struk langsung ke WhatsApp pembeli.</p>
+            </div>
+            <div class="header-actions">
+              <button type="button" class="btn btn-outline btn-sm" data-goto="pos">
+                <i data-lucide="arrow-left" class="icon-sm"></i>
+                <span>Kembali ke Katalog</span>
+              </button>
+              <button type="button" id="btnCartBulkMember" class="btn btn-amber-outline btn-sm">
+                <i data-lucide="check-square" class="icon-sm"></i>
+                <span>Centang Semua Anggota</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="checkout-grid">
+            <!-- Kolom Kiri: Daftar Item Belanja -->
+            <div class="card">
+              <div class="card-header">
+                <h2>Item Dibeli (<span id="checkoutItemBadge">0</span>)</h2>
+                <button type="button" id="btnClearCartFull" class="btn-link-danger">Kosongkan Semua</button>
+              </div>
+              <div id="checkoutCartList" class="checkout-items-list"></div>
+
+              <!-- Catatan & Diskon Ekstra -->
+              <div class="checkout-extras">
+                <div class="form-group">
+                  <label for="orderNoteInput">Catatan Pesanan (Opsional)</label>
+                  <input type="text" id="orderNoteInput" placeholder="Contoh: Titip di meja pengurus / bungkus terpisah" />
+                </div>
+                <div class="form-group">
+                  <label for="extraDiscountInput">Potongan / Voucher Tambahan (Rp)</label>
+                  <input type="number" id="extraDiscountInput" min="0" step="500" value="0" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Kolom Kanan: Panel Pembayaran Cash / QRIS & WhatsApp -->
+            <div class="card payment-panel">
+              <h2>Rincian &amp; Metode Pembayaran</h2>
+
+              <div class="summary-ledger">
+                <div class="ledger-row"><span>Subtotal Harga Normal</span><span id="paySubtotal">Rp 0</span></div>
+                <div class="ledger-row text-emerald"><span>Potongan Harga Anggota</span><span id="payMemberSaved">- Rp 0</span></div>
+                <div class="ledger-row text-amber"><span>Diskon Tambahan</span><span id="payExtraSaved">- Rp 0</span></div>
+                <div class="ledger-total">
+                  <span>TOTAL TAGIHAN</span>
+                  <strong id="payGrandTotal">Rp 0</strong>
+                </div>
+              </div>
+
+              <!-- Pilihan Metode Bayar -->
+              <div class="payment-method-tabs" role="radiogroup" aria-label="Metode Pembayaran">
+                <button type="button" class="pm-tab active" data-method="CASH" aria-checked="true">
+                  <i data-lucide="banknote" class="icon-md"></i>
+                  <div>
+                    <strong>CASH / TUNAI</strong>
+                    <span>Hitung kembalian otomatis</span>
+                  </div>
+                </button>
+                <button type="button" class="pm-tab" data-method="QRIS" aria-checked="false">
+                  <i data-lucide="qr-code" class="icon-md"></i>
+                  <div>
+                    <strong>QRIS INSTAN</strong>
+                    <span>Langsung lunas &amp; tampil di layar</span>
+                  </div>
+                </button>
+              </div>
+
+              <!-- Sub-Panel Pembayaran CASH -->
+              <div id="cashPaymentBox" class="payment-subbox">
+                <label for="cashReceivedInput">Uang Tunai Diterima (Rp)</label>
+                <input type="number" id="cashReceivedInput" min="0" step="500" placeholder="Masukkan nominal uang pembeli..." />
+
+                <div class="quick-cash-grid">
+                  <button type="button" class="btn-cash-preset" data-preset="exact">Uang Pas</button>
+                  <button type="button" class="btn-cash-preset" data-preset="5000">Rp 5.000</button>
+                  <button type="button" class="btn-cash-preset" data-preset="10000">Rp 10.000</button>
+                  <button type="button" class="btn-cash-preset" data-preset="20000">Rp 20.000</button>
+                  <button type="button" class="btn-cash-preset" data-preset="50000">Rp 50.000</button>
+                  <button type="button" class="btn-cash-preset" data-preset="100000">Rp 100.000</button>
+                </div>
+
+                <div id="changeResultBox" class="change-box">
+                  <span>Kembalian Pembeli</span>
+                  <strong id="cashChangeDisplay">Rp 0</strong>
+                </div>
+              </div>
+
+              <!-- Sub-Panel Pembayaran QRIS -->
+              <div id="qrisPaymentBox" class="payment-subbox hidden">
+                <div class="qris-info-card">
+                  <div class="qris-badge">QRIS • LANGSUNG LUNAS</div>
+                  <p>Nominal pas sebesar <strong id="qrisExactAmount">Rp 0</strong> otomatis diteruskan ke <strong>Layar Pembeli Realtime</strong>. Pastikan bukti transfer QRIS berhasil sebelum memproses.</p>
+                </div>
+              </div>
+
+              <!-- Kirim Struk Langsung ke WhatsApp -->
+              <div class="wa-box">
+                <div class="form-group">
+                  <label for="customerWaInput">Nomor WhatsApp Pembeli (Opsional)</label>
+                  <div class="input-with-icon">
+                    <i data-lucide="message-circle" class="input-icon text-emerald"></i>
+                    <input type="tel" id="customerWaInput" placeholder="Contoh: 081234567890" />
+                  </div>
+                </div>
+                <label class="checkbox-label">
+                  <input type="checkbox" id="autoSendWaCheck" checked />
+                  <span>Otomatis buka &amp; kirim struk ke WhatsApp setelah lunas</span>
+                </label>
+              </div>
+
+              <button type="button" id="btnCompleteTransaction" class="btn btn-emerald btn-lg btn-full touch-target mt-3" disabled>
+                <i data-lucide="check-circle-2" class="icon-md"></i>
+                <span>Proses Transaksi &amp; Cetak Struk</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- =====================================================
+             SECTION 4: MANAJEMEN BARANG, UPLOAD JSON & RIWAYAT LOG
+        ====================================================== -->
+        <section id="section-inventory" class="page-section" aria-labelledby="invHeading">
+          <div class="section-header">
+            <div>
+              <span class="pill-emerald">Database Cloud Firestore</span>
+              <h1 id="invHeading">Manajemen Barang, Upload JSON &amp; Riwayat</h1>
+              <p>Unggah katalog JSON ke Firestore, tambah/ubah harga &amp; stok barang, serta kelola riwayat transaksi.</p>
+            </div>
+            <div class="header-actions">
+              <button type="button" id="btnInvUploadJson" class="btn btn-amber btn-sm">
+                <i data-lucide="upload" class="icon-sm"></i>
+                <span>Upload File JSON</span>
+              </button>
+              <button type="button" id="btnDownloadTemplateJson" class="btn btn-outline btn-sm">
+                <i data-lucide="download" class="icon-sm"></i>
+                <span>Unduh Backup JSON</span>
+              </button>
+              <button type="button" id="btnInvAddProduct" class="btn btn-emerald btn-sm">
+                <i data-lucide="plus" class="icon-sm"></i>
+                <span>+ Item Baru</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Sub-Tabs: Katalog Barang vs Riwayat Transaksi -->
+          <div class="subtab-bar">
+            <button type="button" class="subtab active" data-subtab="products">Daftar Barang Firestore (<span id="invProductCount">0</span>)</button>
+            <button type="button" class="subtab" data-subtab="transactions">Riwayat Transaksi &amp; Void (<span id="invTxCount">0</span>)</button>
+          </div>
+
+          <!-- Tab 4A: Tabel Manajemen Produk -->
+          <div id="subtab-products" class="card">
+            <div class="table-toolbar">
+              <input type="search" id="invSearchInput" placeholder="Filter nama barang, SKU, atau kategori..." aria-label="Filter tabel barang" />
+              <button type="button" id="btnClearAllProducts" class="btn btn-danger-outline btn-sm">Kosongkan Database Barang</button>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>Nama Produk</th>
+                    <th>Kategori</th>
+                    <th>Harga Umum</th>
+                    <th>Harga Anggota</th>
+                    <th>Stok</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="inventoryTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Tab 4B: Riwayat Transaksi -->
+          <div id="subtab-transactions" class="card hidden">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>No. Invoice</th>
+                    <th>Waktu (WITA)</th>
+                    <th>Kasir Piket</th>
+                    <th>Item</th>
+                    <th>Metode</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Aksi Struk</th>
+                  </tr>
+                </thead>
+                <tbody id="transactionsTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+
+    <!-- Bottom Navigation Bar (Khusus Mobile & Tablet) -->
+    <nav class="mobile-bottom-nav" aria-label="Navigasi Bawah Perangkat Mobile">
+      <button type="button" class="mb-item active" data-section="dashboard">
+        <i data-lucide="layout-dashboard" class="icon-sm"></i>
+        <span>Dashboard</span>
+      </button>
+      <button type="button" class="mb-item" data-section="pos">
+        <i data-lucide="scan-barcode" class="icon-sm"></i>
+        <span>Kasir</span>
+      </button>
+      <button type="button" class="mb-item" data-section="cart">
+        <i data-lucide="shopping-cart" class="icon-sm"></i>
+        <span>Keranjang</span>
+        <span id="mobileCartBadge" class="mb-badge">0</span>
+      </button>
+      <button type="button" class="mb-item" data-section="inventory">
+        <i data-lucide="database" class="icon-sm"></i>
+        <span>Barang &amp; Log</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Input File Tersembunyi untuk Upload Katalog JSON -->
+  <input type="file" id="jsonFileInput" accept=".json,application/json" class="hidden" />
+
+  <!-- =========================================================
+       MODAL-MODAL INTERAKTIF (STRUK, TAMBAH BARANG, HOLD, SHIFT, KAS, SETTINGS)
+  ========================================================== -->
+
+  <!-- Modal 1: Struk Thermal Realistik & Kirim WhatsApp -->
+  <div id="receiptModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="receiptModalTitle">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <h2 id="receiptModalTitle">Struk Transaksi Berhasil</h2>
+        <button type="button" class="btn-close-modal" data-close-modal="receiptModal" aria-label="Tutup modal struk">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="printableReceiptArea" class="thermal-receipt"></div>
+      </div>
+      <div class="modal-footer-stack">
+        <button type="button" id="btnModalSendWa" class="btn btn-emerald btn-full touch-target">
+          <i data-lucide="send" class="icon-sm"></i>
+          <span>Kirim Struk ke WhatsApp</span>
+        </button>
+        <div class="btn-row-2">
+          <button type="button" id="btnPrintReceipt" class="btn btn-outline">
+            <i data-lucide="printer" class="icon-sm"></i>
+            <span>Cetak Thermal</span>
+          </button>
+          <button type="button" id="btnCopyReceiptText" class="btn btn-outline">
+            <i data-lucide="copy" class="icon-sm"></i>
+            <span>Salin Teks</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Tambah / Edit Barang -->
+  <div id="productFormModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="prodModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="prodModalTitle">Tambah / Edit Produk</h2>
+        <button type="button" class="btn-close-modal" data-close-modal="productFormModal" aria-label="Tutup form produk">&times;</button>
+      </div>
+      <form id="productForm" class="modal-body form-stack">
+        <input type="hidden" id="prodEditId" />
+        <div class="form-group">
+          <label for="prodNameInput">Nama Barang <span class="req">*</span></label>
+          <input type="text" id="prodNameInput" required placeholder="Contoh: Chocopie / Ultra Milk Coklat" />
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="prodCategoryInput">Kategori <span class="req">*</span></label>
+            <select id="prodCategoryInput">
+              <option value="Snack & Permen">Snack &amp; Permen</option>
+              <option value="Minuman">Minuman</option>
+              <option value="Mie Instan">Mie Instan</option>
+              <option value="Es Krim & Makanan">Es Krim &amp; Makanan</option>
+              <option value="ATK & Lainnya">ATK &amp; Lainnya</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="prodStockInput">Stok Awal <span class="req">*</span></label>
+            <input type="number" id="prodStockInput" min="0" value="25" required />
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="prodPriceInput">Harga Jual Umum (Rp) <span class="req">*</span></label>
+            <input type="number" id="prodPriceInput" min="50" step="50" required placeholder="2500" />
+          </div>
+          <div class="form-group">
+            <label for="prodMemberPriceInput">Harga Khusus Anggota (Rp)</label>
+            <input type="number" id="prodMemberPriceInput" min="0" step="50" placeholder="Kosongkan jika tidak ada diskon" />
+          </div>
+        </div>
+        <div class="modal-footer-end">
+          <button type="button" class="btn btn-outline" data-close-modal="productFormModal">Batal</button>
+          <button type="submit" class="btn btn-emerald">Simpan ke Firestore</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3: Pesanan Ditahan (Hold Cart) -->
+  <div id="heldOrdersModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="heldModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="heldModalTitle">Daftar Pesanan Ditahan (Hold)</h2>
+        <button type="button" class="btn-close-modal" data-close-modal="heldOrdersModal" aria-label="Tutup modal">&times;</button>
+      </div>
+      <div id="heldOrdersList" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Tutup Shift & Kalkulator Pecahan Uang Laci -->
+  <div id="shiftModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="shiftModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="shiftModalTitle">Rekap Shift &amp; Hitung Pecahan Laci</h2>
+        <button type="button" class="btn-close-modal" data-close-modal="shiftModal" aria-label="Tutup modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="shiftSummaryBox" class="shift-summary-box"></div>
+        <h3 class="text-sm font-bold mt-3 mb-2">Kalkulator Fisik Uang Tunai Laci</h3>
+        <div id="denominationGrid" class="denom-grid"></div>
+        <div class="denom-result">
+          <div><span>Total Fisik Laci:</span><strong id="denomPhysicalTotal">Rp 0</strong></div>
+          <div><span>Selisih vs Sistem:</span><strong id="denomVarianceTotal">Rp 0</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Buku Kas Keluar (Petty Cash) -->
+  <div id="pettyCashModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="pettyModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="pettyModalTitle">Buku Kas Keluar Operasional</h2>
+        <button type="button" class="btn-close-modal" data-close-modal="pettyCashModal" aria-label="Tutup modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="pettyCashForm" class="form-row-inline mb-3">
+          <input type="text" id="pettyDescInput" placeholder="Keterangan (misal: Beli plastik kresek)" required />
+          <input type="number" id="pettyAmountInput" min="500" step="500" placeholder="Nominal (Rp)" required />
+          <button type="submit" class="btn btn-emerald">Catat</button>
+        </form>
+        <div id="pettyCashList" class="petty-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 6: Pengaturan Identitas Koperasi & Kode Layar Pembeli -->
+  <div id="settingsModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="settingsModalTitle">Pengaturan Koperasi &amp; Layar Pembeli</h2>
+        <button type="button" class="btn-close-modal" data-close-modal="settingsModal" aria-label="Tutup modal">&times;</button>
+      </div>
+      <form id="settingsForm" class="modal-body form-stack">
+        <div class="form-group">
+          <label for="setStoreName">Nama Unit Usaha Koperasi</label>
+          <input type="text" id="setStoreName" required />
+        </div>
+        <div class="form-group">
+          <label for="setStoreAddress">Alamat / Lokasi Kampus</label>
+          <input type="text" id="setStoreAddress" required />
+        </div>
+        <div class="form-group">
+          <label for="setStoreFooter">Pesan Footer Struk</label>
+          <input type="text" id="setStoreFooter" required />
+        </div>
+        <div class="modal-footer-end">
+          <button type="button" class="btn btn-outline" data-close-modal="settingsModal">Tutup</button>
+          <button type="submit" class="btn btn-emerald">Simpan Pengaturan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toastContainer" class="toast-container" role="status" aria-live="polite"></div>
+
+  <!-- Firebase Modular SDK v13.4.0 & Logika Aplikasi -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
